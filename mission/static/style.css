@@ -1,0 +1,134 @@
+html {
+  display: table;
+  margin: auto;
+  margin-top: 15px;
+
+}
+
+body {
+  display: table-cell;
+  margin-top: 10px;
+  vertical-align: middle;
+}
+
+h2, h3{
+  font-family: Arial, Helvetica, sans-serif;
+  text-align: center;
+  color: #555555;
+}
+
+#step, #cost{
+  color: #555555;
+}
+
+#sketch-holder {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+ tr.border{
+  outline: thin solid;
+}
+
+td{
+  padding-top: 2px;
+  padding-bottom: 0px;
+}
+
+.td-panel{
+  padding: 5px;
+  background-color:#f2f2f2; 
+  border-bottom:0px; 
+  font-size: medium;
+}
+
+.button{
+  background-color: #555555;
+  border: none;
+  color: white;
+  padding: 12px 28px;
+  text-align: center;
+  text-decoration: none;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+  display: none;
+}
+
+#qualtrics-container {
+  width: 100%;
+  overflow: visible;
+  position: relative;
+  display: none;
+}
+
+#game-container{
+  display: none;
+}
+
+#close-button {
+  display: none;
+}
+
+#finish-button{
+  background-color: #555555;
+  border: none;
+  color: white;
+  padding: 12px 28px;
+  text-align: center;
+  text-decoration: none;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+  display: none;
+}
+
+.tooltip {
+  position: relative;
+  display: inline-block;
+  border-bottom: 1px dotted black;
+}
+
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: 250px;
+  background-color: grey;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  font-size: 16px;
+  padding: 5px 0;
+
+  /* Position the tooltip */
+  position: absolute;
+  z-index: 1;
+  top: 100%;
+  left: 50%;
+  margin-left: -110px;
+}
+
+.tooltip:hover .tooltiptext {
+  visibility: visible;
+}
+
+
+#tabgame {
+  zoom: 98%;
+}
+
+#tab-panel {
+  width: 100%;
+}
+
+@media only screen and (max-width: 768px) {
+  #tabgame, #tab-panel {
+    zoom: 55%;
+  }
+}
+
+@media only screen and (min-width: 1400px) {
+  #tabgame, #tab-panel {
+    zoom: 100%;
+  }
+}

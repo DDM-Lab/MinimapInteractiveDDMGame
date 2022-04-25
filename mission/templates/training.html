@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<script type="text/javascript">
+        history.pushState(null, null, location.href);
+        window.onpopstate = function () {
+            history.go(1);
+        };
+</script>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="{{ url_for('static', path='js/p5.min.js')}}"></script>
+    <script src="{{ url_for('static', path='js/p5.dom.min.js')}}"></script>
+    <script src="{{ url_for('static', path='js/p5.sound.min.js')}}"></script>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='style.css')}}">
+    <title>Practice</title>
+</head>
+
+<body>
+    <table id="tab-panel" cellpadding="10" cellspacing="0" align="center">
+        <tr>
+            <td class="td-panel">
+                Move Up / Down / Left / Right: using the <b>Arrow</b> keys
+            </td>
+            <td class="td-panel">
+                Speed up the movement: holding <b>X</b> key + <b>Arrow</b> keys
+            </td>
+            <td class="td-panel"> 
+                Open doors: hitting <b>Enter</b> key
+            </td>
+        </tr>
+        <tr>
+            <td class="td-panel">
+                Rescue Green victims: hitting <b>Enter</b> key 5 times
+            </td>
+            <td class="td-panel">
+                Rescue Yellow victims: hitting <b>Enter</b> key 10 times
+            </td>
+            <td class="td-panel">
+                
+            </td>
+
+        </tr>
+    </table>
+    <table id="tabgame" v-if="position" cellpadding="10" cellspacing="0" align="center">
+        <div id="qualtrics-container">
+            <iframe id="frame-qualtrics" src="" height="700px" width="1000px"></iframe>
+        </div>
+
+        <tr id="game-container" class=border>
+            <td>
+                <div align="center">
+                    <h2 id="playtime"> Practice ends in <span id="time"></span> minutes</h2>
+                </div>
+                <div align="center">
+                    <h3>
+                        <span id="episode"></span> |
+                        <span id="goal"> Points: 0</span>
+                    </h3>
+                    <h3><span id="result"></span></h3>
+                    <form name="frm">
+                        <input type="hidden" id="uid" name="uid" value={{data}} />
+                        <input type="hidden" id="session" name="session" value={{session}} />
+                    </form>
+                </div>
+                <form id="minimap" action="/minimap/" method="POST">
+                    <input type="hidden" id="uid" name="uid" value={{data}} />
+                    <input type="hidden" id="session" name="session" value={{session}} />
+                    <div id="sketch-holder">
+                        <!-- <script src="{{ url_for('static', path='js/practice.js?v=')}}"+DateTime.Now.Ticks></script>
+                        <script src="{{ url_for('static', path='js/cell.js?v=')}}"+DateTime.Now.Ticks></script> -->
+                        <script src="{{ url_for('static', path='js/practice.js')}}"></script>
+                        <script src="{{ url_for('static', path='js/cell.js')}}"></script>
+                    </div>
+                    <div align="center">
+                        <button name="next" id="next-button" type="submit" class="button">Next</button>
+                    </div>
+                    <div align="center">
+                        <h3><span id="total"></span></h3>
+                        <button name="finish" id="finish-button" type="submit" class="tooltip">
+                            Start Game <span class="tooltiptext">After clicking this button, you will start the actual game.</span>
+                        </button>
+                    </div>
+                    <script>
+                        $('#minimap').on('submit', function() {
+                            var id = $('#uid').val();
+                            var sessionId = $('#session').val();
+                            var formAction = $('#minimap').attr('action');
+                            $('#minimap').attr('action', formAction + '?uid=' + id + '&session='+(Number(sessionId)));
+                        });
+                    </script>
+                </form>
+            </td>
+        </tr>
+    </table>
+</body>
+
+</html>
