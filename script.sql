@@ -1,6 +1,3 @@
-CREATE DATABASE minimap_visibility_complex;
-USE minimap_visibility_complex;
-
 CREATE TABLE `game`(
     `id` INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     `condition` INT(6) NOT NULL, 

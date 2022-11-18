@@ -1,5 +1,5 @@
-// var DEBUG = true;
-// var ISMAP = false;
+var DEBUG = false;
+var ISMAP = false;
 function Cell(i, j, w) {
   this.i = i;
   this.j = j;
@@ -47,6 +47,21 @@ Cell.prototype.show = function () {
       fill(0, 128, 0);
       rect(this.x, this.y, this.w, this.w);
     }
+    else if (this.goal == 'blue victims') {
+      fill(0, 0, 255);
+      rect(this.x, this.y, this.w, this.w);
+    }
+    else if (this.goal == 'red victims') {
+      fill(255, 0, 0);
+      rect(this.x, this.y, this.w, this.w);
+    }
+    else if (this.goal == 'rubble') {
+      fill(182,182,182);
+      rect(this.x, this.y, this.w, this.w);
+      textAlign(CENTER);
+      fill(0);
+      text("X", this.x + this.w * 0.15, this.y + this.w * 0.9, this.w); 
+    }
   }
 
   if (this.over) {
@@ -85,6 +100,21 @@ Cell.prototype.show = function () {
     else if (this.goal == 'green victims' || this.goal == 'green') {
       fill(0, 128, 0);
       rect(this.x, this.y, this.w, this.w);
+    }
+    else if (this.goal == 'blue victims') {
+      fill(0, 0, 255);
+      rect(this.x, this.y, this.w, this.w);
+    }
+    else if (this.goal == 'red victims') {
+      fill(255, 0, 0);
+      rect(this.x, this.y, this.w, this.w);
+    }
+    else if (this.goal == 'rubble') {
+      fill(182,182,182);
+      rect(this.x, this.y, this.w, this.w);
+      textAlign(CENTER);
+      fill(0);
+      text("X", this.x + this.w * 0.15, this.y + this.w * 0.9, this.w); 
     }
   }
   if (ISMAP) {
@@ -126,4 +156,25 @@ Cell.prototype.contains = function (x, y) {
 
 Cell.prototype.reveal = function () {
   this.revealed = true;
+}
+
+Cell.prototype.markAsVisitedbyAgent = function () {
+  this.agent = false;
+  fill(0,0,255); //change back
+  // fill(255,83,73);
+  ellipse(this.x + this.w * 0.5, this.y + this.w * 0.5,this.w/2);
+  // textAlign(CENTER);
+  // fill(255);
+  // text(val, this.x + this.w * 0.1, this.y + this.w * 0.8, this.w); 
+}
+
+Cell.prototype.addAgentImage = function () {
+  this.agent = true;
+  // this.agent = true;
+  // fill(255,83,73);
+  // fill(123,0,0);
+  // ellipse(this.x + this.w * 0.8, this.y + this.w * 0.8,this.w);
+  fill(255,83,73);
+  ellipse(this.x + this.w * 0.5, this.y + this.w * 0.5, this.w);
+  
 }

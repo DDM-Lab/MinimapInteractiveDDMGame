@@ -2,10 +2,10 @@
     "load_new_map": 1,
     "map_file": "map_design.csv",
     "map_dir": "mission/static/data/",
-    "game_duration": 180,
+    "game_duration": 300,
     "max_episode": 2,
     "victim_die": 120,
-    "visibility": "full",
+    "visibility": "fov",
     "complexity": "complex",
-    "delayed_time": 1000
+    "delayed_time": 0
 }

@@ -15,12 +15,13 @@
     <script src="{{ url_for('static', path='js/p5.min.js')}}"></script>
     <script src="{{ url_for('static', path='js/p5.dom.min.js')}}"></script>
     <script src="{{ url_for('static', path='js/p5.sound.min.js')}}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='style.css')}}">
     <title>Minimap</title>
 </head>
 
 <body>
-    <table id="tab-panel" cellpadding="10" cellspacing="0" align="center">
+    <!-- <table id="tab-panel" cellpadding="10" cellspacing="0" align="center">
         <tr>
             <td class="td-panel">
                 Move Up / Down / Left / Right: using the <b>Arrow</b> keys
@@ -44,7 +45,7 @@
             </td>
 
         </tr>
-    </table>
+    </table> -->
     <table id="tabgame" v-if="position" cellpadding="10" cellspacing="0" align="center">
         <div id="qualtrics-container">
             <iframe id="frame-qualtrics" src="" height="700px" width="1000px"></iframe>

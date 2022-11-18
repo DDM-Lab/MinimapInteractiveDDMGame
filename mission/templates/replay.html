@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery-sparkline@2.4.0/jquery.sparkline.min.js"></script>
+    <style>
+        svg+svg {
+            margin-left: 20px;
+        }
+
+        .sparkline {
+            fill: none;
+        }
+
+        .sparkline--red {
+            stroke: #dc2b33;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.4.13/d3.min.js"
+        integrity="sha512-+fimYMd9ssJlAt7SKeLD8bemPKamAAomwky9niJe6clQ5CD3xDVHvdNbgfr7NSJAQdhZxpTs0t68H4urqYbQog=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/epoch/0.8.4/js/epoch.min.js"
+        integrity="sha512-OQUukBdyDPDSyD0Bul5eNAdMKjOu1xTrK7oCnNnrdtHAx7BqH93ZXpwLMu91YICvfW3Sl/asx5xrVW1Jw38BPw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/epoch/0.8.4/css/epoch.min.css"
+        integrity="sha512-vg5Y7XDOfPBY8A7drxCyYMoBGxqL/5cvxfBuUgqcfvz6y8q7/rLT+LpxVxbljx33aNZwH4BbiQIO8zgtvCCkUQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="{{ url_for('static', path='js/p5.min.js')}}"></script>
+    <script src="{{ url_for('static', path='js/p5.dom.min.js')}}"></script>
+    <script src="{{ url_for('static', path='js/p5.sound.min.js')}}"></script>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='style.css')}}">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+
+    <title>Minimap Replay</title>
+</head>
+
+<body>
+    <p hidden id="ip"></p>
+    <table id="tab-panel" cellpadding="10" cellspacing="0" align="center">
+    </table>
+    <table id="tabgame" v-if="position" cellpadding="10" cellspacing="0" style="width: 900px;" align="center">
+        <tr id="game-container" class=border>
+            <td>
+                <div align="center">
+                    <h2 id="playtime"> Game ends in <span id="time"></span> minutes</h2>
+                </div>
+                <div align="center">
+                    <h3>
+                        <span id="episode"></span> |
+                        <span id="goal"> Points: 0</span> |
+                        <span id="green">Greens: 0</span> |
+                        <span id="yellow">Yellows: 0</span> |
+                        <span>
+                            <input type="checkbox" id="full_falcon" name="full_falcon" value="show_falcon"
+                                onclick="showFullView(this)" checked>
+                            <label for="map"> Full view</label>
+                        </span>
+                        <span id="block-map">
+                            <input type="checkbox" id="map" name="map" value="show_map" onclick="showMap(this)">
+                            <label for="map"> Map view | </label>
+                        </span>
+                        <span>
+                            <i class="fa fa-pause" onclick="myReplay(this)"></i>
+                            <label id="replayStatus">Playing</label>
+                        </span>
+                    </h3>
+                    <h3><span id="result"></span></h3>
+                    <form name="frm">
+                        <input type="hidden" id="uid" name="uid" value={{data}} />
+                        <input type="hidden" id="session" name="session" value={{session}} />
+                        <input type="hidden" id="group" name="group" value={{group}} />
+                    </form>
+                </div>
+                <form id="frmMinimapVis" action="/replay/" method="POST">
+                    <input type="hidden" id="uid" name="uid" value={{data}} />
+                    <input type="hidden" id="session" name="session" value={{session}} />
+                    <input type="hidden" id="group" name="group" value={{group}} />
+
+                    <div id="sketch-holder">
+                        <script src="{{ url_for('static', path='js/visualization.js?v=')}}"
+                            +DateTime.Now.Ticks></script>
+                        <script src="{{ url_for('static', path='js/cell.js?v=')}}" +DateTime.Now.Ticks></script>
+                    </div>
+                </form>
+            </td>
+        </tr>
+    </table>
+</body>
+
+</html>

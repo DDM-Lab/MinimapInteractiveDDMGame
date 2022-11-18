@@ -1,7 +1,12 @@
+var namespace = 'http://' + document.domain + ':' + location.port;
+var socket = io(namespace, { path: '/ws/socket.io' });
+
 var grid;
 var cols;
 var rows;
-var w = 12;
+var w = 13;
+// var w = 16;
+var width, height;
 var agentX = -1;
 var agentY = -1;
 var curX, curY;
@@ -36,12 +41,14 @@ var secondDie;
 var visibility;
 var complexity;
 var delay;
+var gameEntity;
 
 var iframe = document.getElementById('frame-qualtrics');
 var closeBtn = document.getElementById('close-button');
 
 var DEBUG=false;
 var ISMAP=false;
+let socketIOBuffer = [];
 
 function showElement(ElementId) {
   document.getElementById(ElementId).style.display = 'block';
@@ -51,18 +58,63 @@ function hideElement(ElementId) {
   document.getElementById(ElementId).style.display = 'none';
 }
 
+function sendFailedSocketEmits() {
+  if (socketIOBuffer.length > 0) {
+    for (let i = 0; i < socketIOBuffer.length; i++) {
+      emmitSocketIO(socketIOBuffer[i].endpoint, socketIOBuffer[i].value);
+    }
+  }
+}
+
+const withTimeout = (onSuccess, onTimeout, timeout) => {
+  let called = false;
+
+  const timer = setTimeout(() => {
+    if (called) return;
+    called = true;
+    onTimeout();
+  }, timeout);
+
+  return (...args) => {
+    if (called) return;
+    called = true;
+    clearTimeout(timer);
+    onSuccess.apply(this, args);
+  }
+}
+
+function emmitSocketIO(endpoint, value) {
+  try {
+    if (socket) {
+      socket.emit(endpoint, value, withTimeout(
+        () => { },
+        () => {
+          socketIOBuffer.push({ endpoint: endpoint, value: value })
+        }, 1000));
+    } else {
+      socketIOBuffer.push({ endpoint: endpoint, value: value })
+    }
+  } catch (e) {
+    socketIOBuffer.push({ endpoint: endpoint, value: value })
+  }
+}
+
 function setup() {
   showElement("game-container");
   // episodeDisplay.textContent = 'Episode: ' + episode;
   getMap();
   
+  console.log("Client socket: ", socket.id);
+  playerId = uid;
+  console.log('Client socket id:', playerId);
+
+  emmitSocketIO("join", { "pid": playerId, "uid": uid });
+
   async function getMap(level) {
     const response = await fetch('/map/');
     const data = await response.json();
-    // var width = 93 * w + 1;
-    // var height = 50 * w + 1;
-    var width = (parseInt(data["max_x"])+1) * w + 1;
-    var height = (parseInt(data["max_y"])+1) * w + 1;
+    width = (parseInt(data["max_x"])+1) * w + 1;
+    height = (parseInt(data["max_y"])+1) * w + 1;
     var canvas = createCanvas(width, height); 
     canvas.parent('sketch-holder');
     cols = floor(width / w);
@@ -74,7 +126,7 @@ function setup() {
       }
     }
 
-    totalMinutes =  parseInt(data["duration"]);;
+    totalMinutes =  parseInt(data["duration"]);
     gameDuration = totalMinutes / 60 
     maxEpisode = parseInt(data["max_episode"]);
     // console.log(maxEpisode);
@@ -83,9 +135,11 @@ function setup() {
     // console.log(minuteDie, secondDie);
     startTimer(totalMinutes, display);
     generateGrid(data["map_data"]);
-    visibility = data["visibility"]
-    complexity = data["complexity"]
-    delay = data['delayed_time']
+    visibility = data["visibility"];
+    complexity = data["complexity"];
+    delay = data['delayed_time'];
+    gameEntity = data['game_entity'];
+    console.log(gameEntity);
     // console.log("Delayed time: ", delay);
     if (visibility=='fov'){
       ISMAP = false
@@ -111,6 +165,14 @@ function setup() {
     }
     setTimeout(gameOver, totalMinutes*1000);
     getEpisode();
+    intervalEmitSocket = setInterval(function () {
+      if (!isGameOver) {
+        emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': '' })
+      }
+      else {
+        clearInterval(intervalEmitSocket);
+      }
+    }, 1000);
   }
 
   async function getEpisode() {
@@ -122,6 +184,7 @@ function setup() {
     var initData = {"condition":condition, "userid": uid, "episode":episode, "target":"", "target_pos":"",
     "num_step":0, "time_spent":"start", "trajectory":""};
     writeData(initData);
+    emmitSocketIO('record', { "pid": playerId, 'uid': uid, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'start mission' })
   }  
 }
 
@@ -150,10 +213,15 @@ function generateGrid(data) {
 
 function gameOver() {
   isGameOver = true;
+  clearInterval(intervalEmitSocket);
+
   timeDisplay.textContent = "GAME OVER !";
   var data = {"condition":condition, "userid": uid, "episode":episode, "target":"", "target_pos":"",
                 "num_step":targetSteps, "time_spent":"stop", "trajectory":traces.join(";")};
   writeData(data);
+
+  emmitSocketIO('end', { "pid": playerId, 'uid': uid, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'end mission', 'episode': episode })
+
   async function getScore() {
     const response = await fetch('/score/' + uid + '/' + condition);
     const data = await response.json();
@@ -190,7 +258,7 @@ function draw() {
       if (i==0 || (i==cols-1 && grid[i][j].goal!='walls') ||
       (j==rows-1 && grid[i][j].goal!='walls') ||
       (j==0 && grid[i][j].goal!='walls')){
-       grid[i][j].goal = 'borders';
+       grid[i][j].goal = 'walls';
       } 
 
       if (i == agentX && j == agentY) {
@@ -222,7 +290,7 @@ function draw() {
     } else if (keyIsDown(DOWN_ARROW) && keyIsDown(88)) {
       countPress = 0;
       curX = agentX;
-      if(agentY==49){
+      if(agentY==height){
         curY = agentY;
       }else{
         curY = agentY + 1;
@@ -241,13 +309,13 @@ function draw() {
     } else if (keyIsDown(RIGHT_ARROW) && keyIsDown(88)) {
       countPress = 0;
       curY = agentY;
-      if(agentX == 92){
+      if(agentX == width){
         curX = agentX;
       }else{
         curX = agentX + 1;
       }
       checkBoundary(curX, curY);
-    }
+    } 
   }
 }
 
@@ -255,6 +323,8 @@ function myCallback(tmpX, tmpY, consumedTarget, reward)
 {
   curX = tmpX;
   curY = tmpY;
+  agentX=curX;
+  agentY=curY;
   grid[curX][curY].goal = "";
   countPress = 0;
   if (reward > 0){
@@ -269,8 +339,21 @@ function myCallback(tmpX, tmpY, consumedTarget, reward)
   traces = [];
 }
 
+
+var startSpeedUp = false;
+let keysPressed = {};
+let keyVal;
 function keyPressed() {
   if (!isGameOver) {
+    if (keyIsDown(88) && !startSpeedUp) {
+      if (keyCode === UP_ARROW || keyCode === DOWN_ARROW || keyCode === LEFT_ARROW || keyCode === RIGHT_ARROW) {
+        keysPressed[keyCode] = true;
+        keyVal = keyCode;
+        startSpeedUp = true;
+        emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'start speedup' })
+      }
+    }
+
     if (keyCode === UP_ARROW) {
       countPress = 0; 
       curX = agentX;
@@ -282,7 +365,7 @@ function keyPressed() {
     } else if (keyCode === DOWN_ARROW) {
       countPress = 0;
       curX = agentX;
-      if (agentY == 49) {
+      if (agentY == height) {
         curY = agentY;
       } else {
         curY = agentY + 1;
@@ -299,7 +382,7 @@ function keyPressed() {
     } else if (keyCode === RIGHT_ARROW) {
       countPress = 0;
       curY = agentY;
-      if (agentX == 92) {
+      if (agentX == width) {
         curX = agentX;
       } else {
         curX = agentX + 1;
@@ -313,20 +396,54 @@ function keyPressed() {
         var tmpY = agentY + options[i][1];
         if (grid[tmpX][tmpY].goal == 'doors') {
           sleep(delay).then(() => {myCallback(tmpX, tmpY, "door", 0);});
+          emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'door' })
           break;
         }
         else if (grid[tmpX][tmpY].goal == 'green victims') {
+          if (countPress < 5) {
+            emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'triage green in-progress' })
+          }
           if (countPress == 5) {
             sleep(delay).then(() => {myCallback(tmpX, tmpY, "green_victim", 10);});
+            emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'green' })
+            countPress = 0;
             break;
             
           }
         }
         else if (grid[tmpX][tmpY].goal == 'yellow victims') {
+          if (countPress < 10) {
+            emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'triage yellow in-progress' })
+          }
           if (countPress == 10) {
+            emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'yellow' })
             sleep(delay).then(() => {myCallback(tmpX, tmpY, "yellow_victim", 30);});
+            countPress = 0;
             break;
             
+          }
+        }
+        else if (grid[tmpX][tmpY].goal == 'red victims') {
+          if (countPress < 10) {
+            emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'triage red in-progress' })
+          }
+          if (countPress == 10) {
+            sleep(delay).then(() => {myCallback(tmpX, tmpY, "red_victim", 60);});
+            emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'red' })
+            countPress = 0;
+            break;
+            
+          }
+        }
+        else if (grid[tmpX][tmpY].goal == 'rubble') {
+          if (countPress < 5) {
+            emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'clear rubble in-progress' })
+          }
+          if (countPress == 5) {
+            sleep(delay).then(() => {myCallback(tmpX, tmpY, "rubble", 5);});
+            emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'rubble' })
+            countPress = 0;
+            break;
           }
         }
       }
@@ -335,34 +452,21 @@ function keyPressed() {
 }
 
 function keyReleased() {
-  if(!isGameOver){
+  if (!isGameOver) {
+    if (keyCode === 88) {
+      if (keysPressed[UP_ARROW] || keysPressed[DOWN_ARROW] || keysPressed[LEFT_ARROW] || keysPressed[RIGHT_ARROW]) {
+        delete keysPressed[keyVal];
+        startSpeedUp = false;
+        emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'end speedup' })
+      }
+
+    }
     checkBoundary(curX, curY);
   }
 }
 
 function checkBoundary(paraX, paraY) {
-  if (grid[paraX][paraY].goal == 'walls') {
-    paraX = agentX;
-    paraY = agentY;
-    block += 1;
-  }
-  else if (grid[paraX][paraY].goal == 'doors') {
-    paraX = agentX;
-    paraY = agentY;
-  }
-  else if (grid[paraX][paraY].goal == 'yellow victims') {
-    paraX = agentX;
-    paraY = agentY;
-  }
-  else if (grid[paraX][paraY].goal == 'green victims') {
-    paraX = agentX;
-    paraY = agentY;
-  }
-  else if (grid[paraX][paraY].goal == 'stairs') {
-    paraX = agentX;
-    paraY = agentY;
-  }
-  else if (grid[paraX][paraY].goal == 'borders') {
+  if (gameEntity.includes(grid[paraX][paraY].goal)) {
     paraX = agentX;
     paraY = agentY;
   }
@@ -376,32 +480,40 @@ function checkBoundary(paraX, paraY) {
       listFoV=[];
     }
   }
+  emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': '' })
 }
 
 function showFoV(paraX, paraY, mDist){
-  if(agentX>0 &&  agentX<92 && agentY>0 && agentY<49){
+  if(agentX>0 &&  agentX<width && agentY>0 && agentY<height){
     var blockList = ['borders', 'walls', 'doors', 'stairs']
     var op1 = [[1, 0], [-1, 0], [0, 1], [0, -1]]; 
     var op2 = [[1, 0], [0, -1], [-1, 0], [0, 1], [1, 0]]; 
     var op = [[[0, 1], [0, 1], [1, 0], [1, 0]], [[0, 0], [0, 0], [0, 0], [0, 0]], [[0, -1], [0, -1], [-1, 0], [-1, 0]]];
     for(var i=0;i<op1.length;i++){
       for(var t=0;t<mDist;t++){
-        if(agentX==1 ||  agentX == 91 || agentY==1 || agentY==48){
+        if(agentX==1 ||  agentX == (width-1) || agentY==1 || agentY==(height-1)){
           if(t>0){
             break;
           }
         }
-        if(blockList.includes(grid[agentX+op2[i][0]*(t+1)+op2[i+1][0]*t][agentY+op2[i][1]*(t+1)+op2[i+1][1]*t].goal) && 
-        blockList.includes(grid[agentX+op2[i+1][0]*(t+1)+op2[i][0]*t][agentY+op2[i+1][1]*(t+1)+op2[i][1]*t].goal)){
-          for(var k=1;k<mDist-t+1;k++){
-            for(var h=1;h<mDist-t+1;h++){
-              let idx = listFoV.indexOf("("+(agentX + op2[i][0]*(t+k)+ op2[i+1][0]*(t+h))+","+(agentY+ op2[i][1]*(t+k) + op2[i+1][1]*(t+h))+")")
-              if (idx > -1) {
-                listFoV.splice(idx, 1);
-              }
-            }
+        if (grid[agentX+op2[i][0]*(t+1)+op2[i+1][0]*t]!=undefined && grid[agentX+op2[i+1][0]*(t+1)+op2[i][0]*t]!=undefined){
+          if (grid[agentX+op2[i][0]*(t+1)+op2[i+1][0]*t][agentY+op2[i][1]*(t+1)+op2[i+1][1]*t] != undefined &&
+        grid[agentX+op2[i+1][0]*(t+1)+op2[i][0]*t][agentY+op2[i+1][1]*(t+1)+op2[i][1]*t] !=undefined ){
+            if(blockList.includes(grid[agentX+op2[i][0]*(t+1)+op2[i+1][0]*t][agentY+op2[i][1]*(t+1)+op2[i+1][1]*t].goal) && 
+              blockList.includes(grid[agentX+op2[i+1][0]*(t+1)+op2[i][0]*t][agentY+op2[i+1][1]*(t+1)+op2[i][1]*t].goal)){
+                for(var k=1;k<mDist-t+1;k++){
+                  for(var h=1;h<mDist-t+1;h++){
+                    let idx = listFoV.indexOf("("+(agentX + op2[i][0]*(t+k)+ op2[i+1][0]*(t+h))+","+(agentY+ op2[i][1]*(t+k) + op2[i+1][1]*(t+h))+")")
+                    if (idx > -1) {
+                      listFoV.splice(idx, 1);
+                    }
+                  }
+                }
+             }
           }
         }
+        
+        
       }
       
       for(var j=0;j<op.length;j++){
@@ -440,14 +552,14 @@ function isFoV(paraX, paraY, mDist){
   if(agentY == 0){
     mUp = 0;
   }
-  else if(agentY == 49){
-    mDown = 49;
+  else if(agentY == height){
+    mDown = height;
   }
   if(agentX == 0){
     mLeft = 0;
   }
-  else if(agentX == 92){
-    mRight = 92;
+  else if(agentX == width){
+    mRight = width;
   }
   return (paraX >= mLeft && paraX <= mRight && paraY >= mUp && paraY <= mDown);
 }

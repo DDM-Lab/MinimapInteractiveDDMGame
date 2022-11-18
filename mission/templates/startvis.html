@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='style.css')}}">
+    <title>Minimap Replay</title>
+</head>
+
+<body style="margin:15px; padding:15px">
+    <table border="1" cellpadding="20" cellspacing="0"  style="margin-top:45px; width: 850px; " align="center">
+        <tr>
+            <td>
+                <div align="center">
+                    <h1>Minimap Replay</h1>
+                </div>
+
+                <div align="justify">
+                </div>
+                &nbsp
+                <center>
+                    <form id="frmVis" action="/replay" method="POST">
+                        <input type="hidden" id="uid" name="uid" value={{data}} />
+                        <input type="hidden" id="session" name="session" value={{session}} />
+                        <input type="hidden" id="fname" name="fname" />
+                        <p style="font-family:verdana">
+                            Choose data file to replay:
+                            <select id="file_select" name="file_select" style="font-family:verdana">
+                                {% for item in items %}
+                                <option value="{{ item }}">{{ item }}</option>
+                                {% endfor %}
+                            </select>
+                        </p>
+                        &nbsp
+                        <div align="center">
+                            <button name="vis-file" id="next-button" type="submit" class="button_2">Select</button>
+                        </div>
+                        <script>
+                            $('#frmVis').on('submit', function () {
+                                var id = $('#uid').val();
+                                console.log(id);
+                                var selectedFile = document.getElementById("file_select").value;
+                                $('#fname').val(selectedFile);
+                                console.log(selectedFile);
+                                var sessionId = Number($('#session').val());
+                                $('#session').val(sessionId);
+                                var formAction = $('#frmVis').attr('action');
+                                // $('#frmVis').attr('action', formAction + '/?uid=' + id.toString()+ '&session='+(Number(sessionId))+'&fname='+selectedFile);
+                                $('#frmVis').attr('action', formAction + '/?fname=' + selectedFile);
+                            });
+                        </script>
+            
+                    </form>
+                </center>
+                &nbsp
+            </td>
+        </tr>
+    
+</body>
+
+</html>
