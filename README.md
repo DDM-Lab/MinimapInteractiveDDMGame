@@ -16,7 +16,7 @@ Create a database in MySQL using the SQL script `script.sql`.
 
 ## Local Installation
 1. In a command shell, goto the main folder that contains the `requirements.txt` file.
-2. (suggestion) Create a virtual Python Environment by running the following commands in your shell. (This may be different on your machine!  If it does not work, look at how to install a virtual psoython env based on your system.):
+2. (suggestion) Create a virtual Python Environment by running the following commands in your shell. (This may be different on your machine!  If it does not work, look at how to install a virtual python env based on your system.):
     - `python3 -m venv env`
     - `source env/bin/activate`
 3. Install the required python libraries by running this command in your shell:
