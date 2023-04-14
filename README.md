@@ -7,9 +7,9 @@ This is a browser-based game for Search and Rescue missions. It was written in P
 - Rescue a yellow victim: pressing `Enter` ten times
 
 <p align="center">
-  <img src="./images/fullview.gif" width="30%"> 
-  <img src="./images/mapview.gif" width="30%"> 
-  <img src="./images/fov.gif" width="30%"> <br/>
+  <img src="./images/fullview.gif" width="32%"> 
+  <img src="./images/mapview.gif" width="32%"> 
+  <img src="./images/fov.gif" width="32%"> <br/>
   <i>Layout the default search and rescue task with different levels of visibility.</i>
 </p>
 
