@@ -1,14 +1,14 @@
-"number","name"
-1,"walls"
-2,"doors"
-3,"green victims"
-4,"blue victims"
-5,"red victims"
-6,"yellow victims"
-7,"other"
-8,"agent"
-9,"rubble"
-10,""
-11,""
-12,""
-13,""
+number,name,press,reward
+1,wall,0,0
+2,door,1,0
+3,green,5,10
+4,blue,15,10
+5,red,20,60
+6,yellow,10,30
+7,other,0,0
+8,agent,0,0
+9,rubble,5,0
+10,,,
+11,,,
+12,,,
+13,,,

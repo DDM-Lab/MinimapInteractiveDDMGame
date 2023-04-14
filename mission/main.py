@@ -30,6 +30,8 @@ CONF_PATH = os.path.join(os.getcwd(), "mission/config.json")
 with open(CONF_PATH, 'r') as f:
     CONFIG = json.load(f)
 
+# condition name
+cond_name = CONFIG['cond_name']
 # Path to where new designed maps is located
 MAP_DIR = CONFIG['map_dir']
 is_new_map = CONFIG['load_new_map']
@@ -46,6 +48,9 @@ visibility = CONFIG['visibility']
 complexity = CONFIG['complexity']
 # Delay in the player's action
 delayed_time =  CONFIG['delayed_time']
+# Time perturbation happens
+perturbation_time = CONFIG['perturbation_time']
+
 
 DATA_DIR = os.path.join(os.getcwd(),'data')
 is_exist = os.path.exists(DATA_DIR)
@@ -59,6 +64,7 @@ roomid_players = {}
 scoreboard_players = {} 
 
 
+
 def get_db():
     db = SessionLocal()
     try:
@@ -66,41 +72,42 @@ def get_db():
     finally:
         db.close()    
 
-def process_map():
-    # df_map = pd.read_csv('mission/static/data/map_design.csv')
-    df_map = pd.read_csv(MAP_DIR+map_file)
-    print("Shape: ", df_map.shape)
+def process_map(file):
+    df_map = pd.read_csv(MAP_DIR+file)
+    # print("Shape: ", df_map.shape)
     new_map = pd.melt(df_map, id_vars='x/z', value_vars=[str(i) for i in range(0,(df_map.shape[1]-1))], var_name='z', value_name='key')
     new_map = new_map.rename(columns={"x/z": "x"})
     new_map.index.name='id'
     new_map['key'] = new_map['key'].fillna(12)
     dict_codebook = pd.read_csv(MAP_DIR+'codebook.csv').to_dict()
     new_map['key2'] = new_map.apply(lambda x: dict_codebook['name'][list(dict_codebook['number'].values()).index(x['key'])], axis=1)
-    # new_map['key2'] = codebook(6)
-    new_map.columns = ['z', 'x', 'code', 'key']
-    new_file = map_file.split('.')[0]+'_new.csv'
+    new_map['press'] = new_map.apply(lambda x: dict_codebook['press'][list(dict_codebook['number'].values()).index(x['key'])], axis=1)
+    new_map['reward'] = new_map.apply(lambda x: dict_codebook['reward'][list(dict_codebook['number'].values()).index(x['key'])], axis=1)
+    new_map.columns = ['z', 'x', 'code', 'key', 'press', 'reward']
+    new_file = file.split('.')[0]+'_new.csv'
     new_map.to_csv(MAP_DIR+new_file)
     
 
+def readMapFile(csvFilePath):
+    data = {}     
+    with open(csvFilePath, encoding='utf-8') as csvf: 
+        csvReader = csv.DictReader(csvf) 
+        for rows in csvReader: 
+            key = rows['id'] 
+            data[key] = rows
+    return data
+
 def get_map():
     if is_new_map:
-        process_map()
+        process_map(map_file)
         new_file = map_file.split('.')[0]+'_new.csv'
         csvFilePath = MAP_DIR+new_file
     elif complexity =='complex':
         csvFilePath = MAP_DIR+'map_complex.csv'
     elif complexity =='simple':
         csvFilePath = MAP_DIR+'map_simple.csv'
-    data = {} 
-    global map_data
-    with open(csvFilePath, encoding='utf-8') as csvf: 
-        csvReader = csv.DictReader(csvf) 
-        for rows in csvReader: 
-            key = rows['id'] 
-            data[key] = rows
-    map_data = data
-    # print(map_data)
-    return data
+    
+    return readMapFile(csvFilePath)
 
 # get_map()
 
@@ -156,7 +163,7 @@ async def handle_episode(sid, *args, **kwargs):
     roomid_players[pid]['score']=scoreboard_players[msg['pid']]
     room_data[msg['pid']].append(json.dumps(roomid_players[msg['pid']]))
     
-    new_path = f'{DATA_DIR}/data_user_{pid}_episode_{game_over}.json'
+    new_path = f'{DATA_DIR}/data_user_{pid}_episode_{game_over}_cond_{cond_name}.json'
     with open(new_path, 'w') as outfile:
         json.dump(room_data[pid], outfile)
 
@@ -188,19 +195,46 @@ async def get_map_data():
     x_pos = set()
     y_pos = set()
     game_entity = set()
+    reward_dict = {}
+    press_dict = {}
+
     for k in list(map_data.keys()):
         x_pos.add(map_data[k]['x'])
         y_pos.add(map_data[k]['z'])
         if map_data[k]['key'] != '':
             game_entity.add(map_data[k]['key'])
+            reward_dict[map_data[k]['key']]= map_data[k]['reward']
+            press_dict[map_data[k]['key']]= map_data[k]['press']
+    
     x_pos = [int(i) for i in x_pos]
     y_pos = [int(i) for i in y_pos]
     max_x = max(x_pos)
     max_y = max(y_pos)
     return {"map_data":map_data, 'max_x':max_x, 'max_y':max_y, 'duration':GAME_DURATION, \
-        'max_episode':MAX_EPISODE, 'time_die':time_die, 'visibility':visibility, \
-            'complexity':complexity, 'delayed_time': delayed_time, 'game_entity': game_entity}
+        'max_episode':MAX_EPISODE, 'time_die':time_die, 'visibility':visibility, 'tile_width': CONFIG['tile_width'],\
+            'complexity':complexity, 'delayed_time': delayed_time, 'game_entity': game_entity, \
+                'reward': reward_dict, 'press':  press_dict,
+                'perturbation_time': CONFIG['perturbation_time']}
 
+
+@app.get("/pertubation/")
+async def get_update():
+    file = CONFIG['map_perturbation']
+    process_map(file)
+    new_file = file.split('.')[0]+'_new.csv'
+    csvFilePath = MAP_DIR+new_file
+    map_data = readMapFile(csvFilePath)
+    game_entity = set()
+    reward_dict = {}
+    press_dict = {}
+    for k in list(map_data.keys()):
+        if map_data[k]['key'] != '':
+            game_entity.add(map_data[k]['key'])
+            reward_dict[map_data[k]['key']]= map_data[k]['reward']
+            press_dict[map_data[k]['key']]= map_data[k]['press']
+    return {"map_data":map_data, 'game_entity': game_entity,  'reward': reward_dict, 'press':  press_dict}
+
+        
 
 @app.post("/game_play", response_model=schemas.Game)
 async def create_game(game: schemas.GameCreate, db: Session = Depends(get_db)):

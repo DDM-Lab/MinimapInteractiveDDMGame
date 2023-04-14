@@ -1,7 +1,7 @@
 var namespace = 'http://' + document.domain + ':' + location.port;
 var socket = io(namespace, { path: '/ws/socket.io' });
 
-var grid;
+var grid, gridCopy;
 var cols;
 var rows;
 var w = 13;
@@ -34,14 +34,16 @@ const episodeDisplay = document.getElementById('episode');
 
 const dist = 2;
 var listFoV = [];
-var listYellow = [];
-var minuteDie;
-var secondDie;
+var listDisappear = [];
+
+var timeDie;
 
 var visibility;
 var complexity;
 var delay;
 var gameEntity;
+var reward_dict;
+var press_dict;
 
 var iframe = document.getElementById('frame-qualtrics');
 var closeBtn = document.getElementById('close-button');
@@ -113,6 +115,8 @@ function setup() {
   async function getMap(level) {
     const response = await fetch('/map/');
     const data = await response.json();
+    w = parseInt(data["tile_width"]);
+    
     width = (parseInt(data["max_x"])+1) * w + 1;
     height = (parseInt(data["max_y"])+1) * w + 1;
     var canvas = createCanvas(width, height); 
@@ -120,9 +124,12 @@ function setup() {
     cols = floor(width / w);
     rows = floor(height / w);
     grid = make2DArray(cols, rows);
+    gridCopy = make2DArray(cols, rows);
+    
     for (var i = 0; i < cols; i++) {
       for (var j = 0; j < rows; j++) {
         grid[i][j] = new Cell(i, j, w);
+        gridCopy[i][j] = new Cell(i, j, w);
       }
     }
 
@@ -130,17 +137,20 @@ function setup() {
     gameDuration = totalMinutes / 60 
     maxEpisode = parseInt(data["max_episode"]);
     // console.log(maxEpisode);
-    minuteDie = parseInt(data["time_die"]) / 60;
-    secondDie = parseInt(data["time_die"]) % 60;
-    // console.log(minuteDie, secondDie);
+    timeDie = parseInt(data["time_die"]);
     startTimer(totalMinutes, display);
-    generateGrid(data["map_data"]);
+    
+    //create an environment
+    generateGrid(data["map_data"]); 
+
     visibility = data["visibility"];
     complexity = data["complexity"];
-    delay = data['delayed_time'];
+    delay = data['delayed_time']*1000;
     gameEntity = data['game_entity'];
-    console.log(gameEntity);
-    // console.log("Delayed time: ", delay);
+    perturbation = data['perturbation_time'];
+    reward_dict = Object(data['reward']);
+    press_dict = Object(data['press']);
+    
     if (visibility=='fov'){
       ISMAP = false
       if (complexity == "simple"){
@@ -163,6 +173,14 @@ function setup() {
         condition = 5
       }
     }
+    
+    if(timeDie!=0){
+      setTimeout(disappear, timeDie*1000);
+    }
+    if(perturbation!=0){
+      setTimeout(updateEnvironment, perturbation*1000);
+    }
+
     setTimeout(gameOver, totalMinutes*1000);
     getEpisode();
     intervalEmitSocket = setInterval(function () {
@@ -189,14 +207,45 @@ function setup() {
 }
 
 function generateGrid(data) {
+  listDisappear = [];
   size = Object.keys(data).length;
   for (let entry of Object.entries(data)) {
     var type = entry[1]['key'];
     var posX = Number(entry[1]['x']);
     var posY = Number(entry[1]['z']);
     grid[posX][posY].goal = type;    
-    if (type === "yellow" || type === "yellow victims") {
-      listYellow.push([posX, posY]);
+    if (type === "yellow" || type==="red") {
+      listDisappear.push([posX, posY]);
+    }
+    else if (type == "agent") {
+      agentX = posX;
+      agentY = posY;
+      console.log("Agent X; Agent Y: ", agentX, agentY);
+    }
+  }
+  if (agentX === -1 && agentY === -1){
+    agentX = 4;
+    agentY = 4;
+  }
+  
+  traces.push("(" + agentX + "," + agentY + ")");
+}
+
+function generateGridPerturbation(data) {
+  listDisappear = [];
+  size = Object.keys(data).length;
+  for (let entry of Object.entries(data)) {
+    var type = entry[1]['key'];
+    var posX = Number(entry[1]['x']);
+    var posY = Number(entry[1]['z']);
+    
+
+    if (grid[posX][posY].goal!=" " && gridCopy[posX][posY].goal != type) {
+      grid[posX][posY].goal = type;    
+    }
+    
+    if (type === "yellow" || type==="red") {
+      listDisappear.push([posX, posY]);
     }
     else if (type == "agent") {
       agentX = posX;
@@ -211,6 +260,25 @@ function generateGrid(data) {
   traces.push("(" + agentX + "," + agentY + ")");
 }
 
+async function updateEnvironment() {
+  const response = await fetch('/pertubation/');
+  const data = await response.json();
+   //create an environment
+   reward_dict = Object(data['reward']);
+   press_dict = Object(data['press']);
+   gameEntity = data['game_entity'];
+   generateGridPerturbation(data["map_data"]); 
+   emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'perturbation' })
+}
+
+function disappear(){
+  for(var i in listDisappear){
+    var posX = listDisappear[i][0];
+    var posY = listDisappear[i][1];
+    grid[posX][posY].goal = " ";
+  }
+
+}
 function gameOver() {
   isGameOver = true;
   clearInterval(intervalEmitSocket);
@@ -255,10 +323,10 @@ function draw() {
   for (var i = 0; i < cols; i++) {
     for (var j = 0; j < rows; j++) {
       
-      if (i==0 || (i==cols-1 && grid[i][j].goal!='walls') ||
-      (j==rows-1 && grid[i][j].goal!='walls') ||
-      (j==0 && grid[i][j].goal!='walls')){
-       grid[i][j].goal = 'walls';
+      if (i==0 || (i==cols-1 && grid[i][j].goal!='wall') ||
+      (j==rows-1 && grid[i][j].goal!='wall') ||
+      (j==0 && grid[i][j].goal!='wall')){
+       grid[i][j].goal = 'wall';
       } 
 
       if (i == agentX && j == agentY) {
@@ -325,8 +393,9 @@ function myCallback(tmpX, tmpY, consumedTarget, reward)
   curY = tmpY;
   agentX=curX;
   agentY=curY;
-  grid[curX][curY].goal = "";
+  grid[curX][curY].goal = " ";
   countPress = 0;
+  reward = parseInt(reward)
   if (reward > 0){
     rescue += reward;
     document.getElementById('goal').innerHTML = 'Points: ' + rescue.toString();
@@ -394,53 +463,65 @@ function keyPressed() {
       for (var i = 0; i < options.length; i++) {
         var tmpX = agentX + options[i][0];
         var tmpY = agentY + options[i][1];
-        if (grid[tmpX][tmpY].goal == 'doors') {
+        if (grid[tmpX][tmpY].goal == 'door') {
           sleep(delay).then(() => {myCallback(tmpX, tmpY, "door", 0);});
           emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'door' })
           break;
         }
-        else if (grid[tmpX][tmpY].goal == 'green victims') {
-          if (countPress < 5) {
+        else if (grid[tmpX][tmpY].goal == 'green') {
+          if (countPress < press_dict[grid[tmpX][tmpY].goal]) {
             emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'triage green in-progress' })
           }
-          if (countPress == 5) {
-            sleep(delay).then(() => {myCallback(tmpX, tmpY, "green_victim", 10);});
+          if (countPress == press_dict[grid[tmpX][tmpY].goal]) {
+            sleep(delay).then(() => {myCallback(tmpX, tmpY, "green_victim", reward_dict[grid[tmpX][tmpY].goal]);});
             emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'green' })
             countPress = 0;
             break;
             
           }
         }
-        else if (grid[tmpX][tmpY].goal == 'yellow victims') {
-          if (countPress < 10) {
+        else if (grid[tmpX][tmpY].goal == 'yellow') {
+          if (countPress < press_dict[grid[tmpX][tmpY].goal]) {
             emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'triage yellow in-progress' })
           }
-          if (countPress == 10) {
+          if (countPress == press_dict[grid[tmpX][tmpY].goal]) {
             emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'yellow' })
-            sleep(delay).then(() => {myCallback(tmpX, tmpY, "yellow_victim", 30);});
+            sleep(delay).then(() => {myCallback(tmpX, tmpY, "yellow_victim", reward_dict[grid[tmpX][tmpY].goal]);});
             countPress = 0;
             break;
             
           }
         }
-        else if (grid[tmpX][tmpY].goal == 'red victims') {
-          if (countPress < 10) {
+        else if (grid[tmpX][tmpY].goal == 'red') {
+          if (countPress < press_dict[grid[tmpX][tmpY].goal]) {
             emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'triage red in-progress' })
           }
-          if (countPress == 10) {
-            sleep(delay).then(() => {myCallback(tmpX, tmpY, "red_victim", 60);});
+          if (countPress == press_dict[grid[tmpX][tmpY].goal]) {
+            sleep(delay).then(() => {myCallback(tmpX, tmpY, "red_victim", reward_dict[grid[tmpX][tmpY].goal]);});
             emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'red' })
             countPress = 0;
             break;
             
           }
         }
+        else if (grid[tmpX][tmpY].goal == 'blue') {
+          if (countPress < press_dict[grid[tmpX][tmpY].goal]) {
+            emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'triage blue in-progress' })
+          }
+          if (countPress == press_dict[grid[tmpX][tmpY].goal]) {
+            sleep(delay).then(() => {myCallback(tmpX, tmpY, "blue_victim", reward_dict[grid[tmpX][tmpY].goal]);});
+            emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'blue' })
+            countPress = 0;
+            break;
+            
+          }
+        }
         else if (grid[tmpX][tmpY].goal == 'rubble') {
-          if (countPress < 5) {
+          if (countPress < press_dict[grid[tmpX][tmpY].goal]) {
             emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'clear rubble in-progress' })
           }
-          if (countPress == 5) {
-            sleep(delay).then(() => {myCallback(tmpX, tmpY, "rubble", 5);});
+          if (countPress == press_dict[grid[tmpX][tmpY].goal]) {
+            sleep(delay).then(() => {myCallback(tmpX, tmpY, "rubble", reward_dict[grid[tmpX][tmpY].goal]);});
             emmitSocketIO('record', { "pid": playerId, "x": agentX, "y": agentY, 'mission_time': display.textContent, 'event': 'rubble' })
             countPress = 0;
             break;
@@ -485,7 +566,7 @@ function checkBoundary(paraX, paraY) {
 
 function showFoV(paraX, paraY, mDist){
   if(agentX>0 &&  agentX<width && agentY>0 && agentY<height){
-    var blockList = ['borders', 'walls', 'doors', 'stairs']
+    var blockList = ['border', 'wall', 'door', 'stair', 'rubble']
     var op1 = [[1, 0], [-1, 0], [0, 1], [0, -1]]; 
     var op2 = [[1, 0], [0, -1], [-1, 0], [0, 1], [1, 0]]; 
     var op = [[[0, 1], [0, 1], [1, 0], [1, 0]], [[0, 0], [0, 0], [0, 0], [0, 0]], [[0, -1], [0, -1], [-1, 0], [-1, 0]]];
@@ -580,6 +661,7 @@ function startTimer(duration, display) {
   var t;
   function timer() {
     diff = duration - (((Date.now() - start) / 1000) | 0);
+    
 
     if (diff >= 0) {
       minutes = (diff / 60) | 0;
@@ -587,14 +669,6 @@ function startTimer(duration, display) {
       minutes = minutes < 10 ? "0" + minutes : minutes;
       seconds = seconds < 10 ? "0" + seconds : seconds;
       display.textContent = minutes + ":" + seconds;
-    }
-
-    if (minutes == minuteDie && seconds == secondDie){
-      for(var i in listYellow){
-        var posX = listYellow[i][0];
-        var posY = listYellow[i][1];
-        grid[posX][posY].goal = "";
-      }
     }
 
     if (minutes == 0 && seconds == 0) {

@@ -1,11 +1,15 @@
 {
-    "load_new_map": 1,
-    "map_file": "map_design.csv",
+    "cond_name": "simple-fov",
+    "load_new_map": 0,
+    "map_file": "map_design_c.csv",
     "map_dir": "mission/static/data/",
-    "game_duration": 300,
-    "max_episode": 2,
+    "tile_width": 13,
+    "game_duration": 60,
+    "max_episode": 8,
     "victim_die": 120,
-    "visibility": "fov",
-    "complexity": "complex",
-    "delayed_time": 0
+    "visibility": "full",
+    "complexity": "simple",
+    "delayed_time": 0,
+    "perturbation_time": 0,
+    "map_perturbation": "map_perturbation_c.csv"
 }
