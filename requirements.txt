@@ -17,7 +17,7 @@ protobuf==3.13.0
 pydantic==1.6.1
 python-dateutil==2.8.1
 python-engineio==3.13.2
-python-multipart==0.0.5
+python-multipart==0.0.31
 python-socketio==4.6.0
 pytz==2021.1
 six==1.15.0
